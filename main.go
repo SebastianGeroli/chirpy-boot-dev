@@ -6,7 +6,11 @@ import (
 
 func main() {
 	serveMux := http.ServeMux{}
-	serveMux.Handle("/", http.FileServer(http.Dir(".")))
+	handler := http.StripPrefix("/app", http.FileServer(http.Dir(".")))
+	serveMux.Handle("/app/", handler)
+	serveMux.Handle("/app/assets/logo.png", handler)
+	serveMux.HandleFunc("/healthz", healthz)
+
 	server := http.Server{
 		Handler: &serveMux,
 		Addr:    ":8080",
