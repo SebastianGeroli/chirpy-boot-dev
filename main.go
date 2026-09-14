@@ -18,9 +18,9 @@ func main() {
 	fileHandler := http.StripPrefix("/app", http.FileServer(http.Dir(".")))
 	serveMux.Handle("/app/", apiConfig.middlewareMetricsInc(fileHandler))
 	serveMux.Handle("/app/assets/logo.png", apiConfig.middlewareMetricsInc(fileHandler))
-	serveMux.HandleFunc("/healthz", healthz)
-	serveMux.HandleFunc("/metrics", apiConfig.getMetrics)
-	serveMux.HandleFunc("/reset", apiConfig.resetMetrics)
+	serveMux.HandleFunc("GET /healthz", healthz)
+	serveMux.HandleFunc("GET /metrics", apiConfig.getMetrics)
+	serveMux.HandleFunc("POST /reset", apiConfig.resetMetrics)
 
 	server := http.Server{
 		Handler: &serveMux,
