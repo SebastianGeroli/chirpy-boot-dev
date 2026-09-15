@@ -10,54 +10,53 @@ func chirp(responseWriter http.ResponseWriter, request *http.Request) {
 		Body string `json:"body"`
 	}
 
-	type returnError struct {
-		Error string `json:"error"`
+	decoder := json.NewDecoder(request.Body)
+	params := parameters{}
+	err := decoder.Decode(&params)
+	if err != nil {
+		respondWithError(responseWriter, 400, "Failed to, parse body. Invalid JSON")
+		return
+	}
+
+	if len(params.Body) > 140 {
+		respondWithError(responseWriter, 400, "Chirp is too long")
 	}
 
 	type returnValid struct {
 		Valid bool `json:"valid"`
 	}
-
-	decoder := json.NewDecoder(request.Body)
-	params := parameters{}
-	err := decoder.Decode(&params)
-	if err != nil {
-		error := returnError{
-			Error: "Failed to, parse body. Invalid JSON",
-		}
-		dat, internalErr := json.Marshal(error)
-		if internalErr != nil {
-			responseWriter.WriteHeader(500)
-			bytes := []byte("Failed to parse error.. internal server error")
-			responseWriter.Write(bytes)
-		}
-		responseWriter.WriteHeader(400)
-		responseWriter.Write([]byte(dat))
-	}
-
-	if len(params.Body) > 140 {
-		error := returnError{
-			Error: "Chirp is too long",
-		}
-		dat, internalErr := json.Marshal(error)
-		if internalErr != nil {
-			responseWriter.WriteHeader(500)
-			bytes := []byte("Failed to parse error.. internal server error")
-			responseWriter.Write(bytes)
-		}
-		responseWriter.WriteHeader(400)
-		responseWriter.Write([]byte(dat))
-	}
-
 	validResponse := returnValid{
 		Valid: true,
 	}
-	dat, err := json.Marshal(validResponse)
-	if err != nil {
-		responseWriter.WriteHeader(500)
-		bytes := []byte("Failed to parse valid response... internal server error")
-		responseWriter.Write(bytes)
+	respondWithJSON(responseWriter, 200, validResponse)
+}
+
+func respondWithError(w http.ResponseWriter, code int, msg string) {
+	type returnError struct {
+		Error string `json:"error"`
 	}
-	responseWriter.WriteHeader(200)
-	responseWriter.Write([]byte(dat))
+	error := returnError{
+		Error: msg,
+	}
+	dat, marshalErr := json.Marshal(error)
+	if marshalErr != nil {
+		w.WriteHeader(500)
+		bytes := []byte("Failed to parse error.. internal server error")
+		w.Write(bytes)
+		return
+	}
+	w.WriteHeader(code)
+	w.Write([]byte(dat))
+}
+
+func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
+	dat, err := json.Marshal(payload)
+	if err != nil {
+		w.WriteHeader(500)
+		bytes := []byte("Failed to parse payload... internal server error")
+		w.Write(bytes)
+		return
+	}
+	w.WriteHeader(200)
+	w.Write([]byte(dat))
 }
