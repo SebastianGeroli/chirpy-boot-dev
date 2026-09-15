@@ -14,7 +14,7 @@ import (
 
 type apiConfig struct {
 	fileserverHits atomic.Int32
-	dbQueries      *database.Queries
+	db             *database.Queries
 }
 
 func main() {
@@ -26,19 +26,19 @@ func main() {
 		os.Exit(1)
 	}
 	dbQueries := database.New(db)
-	apiConfig := apiConfig{
+	cfg := apiConfig{
 		fileserverHits: atomic.Int32{},
-		dbQueries:      dbQueries,
+		db:             dbQueries,
 	}
 	serveMux := http.ServeMux{}
 	fileHandler := http.StripPrefix("/app", http.FileServer(http.Dir(".")))
-	serveMux.Handle("/app/", apiConfig.middlewareMetricsInc(fileHandler))
-	serveMux.Handle("/app/assets/logo.png", apiConfig.middlewareMetricsInc(fileHandler))
+	serveMux.Handle("/app/", cfg.middlewareMetricsInc(fileHandler))
+	serveMux.Handle("/app/assets/logo.png", cfg.middlewareMetricsInc(fileHandler))
 	serveMux.HandleFunc("GET /api/healthz", healthz)
-	//serveMux.HandleFunc("POST /api/validate_chirp", chirp)
-	serveMux.HandleFunc("GET /admin/metrics", apiConfig.getMetrics)
-	serveMux.HandleFunc("POST /admin/reset", apiConfig.resetMetrics)
+	serveMux.HandleFunc("GET /admin/metrics", cfg.getMetrics)
+	serveMux.HandleFunc("POST /admin/reset", cfg.reset)
 	serveMux.HandleFunc("POST /api/validate_chirp", validate_chirp)
+	serveMux.HandleFunc("POST /api/users", cfg.createUser)
 
 	server := http.Server{
 		Handler: &serveMux,
@@ -48,15 +48,15 @@ func main() {
 }
 
 func (cfg *apiConfig) middlewareMetricsInc(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(responseWriter http.ResponseWriter, request *http.Request) {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		cfg.fileserverHits.Add(1)
-		next.ServeHTTP(responseWriter, request)
+		next.ServeHTTP(w, r)
 	})
 }
 
-func (cfg *apiConfig) getMetrics(responseWriter http.ResponseWriter, request *http.Request) {
-	responseWriter.Header().Set("content-type", "  text/html")
-	responseWriter.WriteHeader(200)
+func (cfg *apiConfig) getMetrics(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("content-type", "  text/html")
+	w.WriteHeader(200)
 	html := fmt.Sprintf(`
 	<html>
   <body>
@@ -66,13 +66,18 @@ func (cfg *apiConfig) getMetrics(responseWriter http.ResponseWriter, request *ht
 </html>
 	`, cfg.fileserverHits.Load())
 	bytes := fmt.Appendf(nil, "%s", html)
-	responseWriter.Write(bytes)
+	w.Write(bytes)
 }
 
-func (cfg *apiConfig) resetMetrics(responseWriter http.ResponseWriter, request *http.Request) {
-	responseWriter.Header().Set("content-type", "  text/plain; charset=utf-8")
-	responseWriter.WriteHeader(200)
+func (cfg *apiConfig) reset(w http.ResponseWriter, r *http.Request) {
 	cfg.fileserverHits.Store(0)
-	bytes := fmt.Appendf(nil, "Hits reset: %v", cfg.fileserverHits.Load())
-	responseWriter.Write(bytes)
+	_, err := cfg.db.DeleteAllUsers(r.Context())
+	if err != nil {
+		respondWithError(w, 500, err.Error())
+		return
+	}
+	w.Header().Set("content-type", "  text/plain; charset=utf-8")
+	w.WriteHeader(200)
+	w.Write([]byte("Reset called"))
+
 }

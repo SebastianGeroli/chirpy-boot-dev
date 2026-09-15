@@ -31,6 +31,6 @@ func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
 		w.Write(bytes)
 		return
 	}
-	w.WriteHeader(200)
+	w.WriteHeader(code)
 	w.Write([]byte(dat))
 }
