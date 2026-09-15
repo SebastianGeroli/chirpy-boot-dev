@@ -5,32 +5,6 @@ import (
 	"net/http"
 )
 
-func chirp(responseWriter http.ResponseWriter, request *http.Request) {
-	type parameters struct {
-		Body string `json:"body"`
-	}
-
-	decoder := json.NewDecoder(request.Body)
-	params := parameters{}
-	err := decoder.Decode(&params)
-	if err != nil {
-		respondWithError(responseWriter, 400, "Failed to, parse body. Invalid JSON")
-		return
-	}
-
-	if len(params.Body) > 140 {
-		respondWithError(responseWriter, 400, "Chirp is too long")
-	}
-
-	type returnValid struct {
-		Valid bool `json:"valid"`
-	}
-	validResponse := returnValid{
-		Valid: true,
-	}
-	respondWithJSON(responseWriter, 200, validResponse)
-}
-
 func respondWithError(w http.ResponseWriter, code int, msg string) {
 	type returnError struct {
 		Error string `json:"error"`
