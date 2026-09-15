@@ -19,6 +19,7 @@ func main() {
 	serveMux.Handle("/app/", apiConfig.middlewareMetricsInc(fileHandler))
 	serveMux.Handle("/app/assets/logo.png", apiConfig.middlewareMetricsInc(fileHandler))
 	serveMux.HandleFunc("GET /api/healthz", healthz)
+	serveMux.HandleFunc("POST /api/validate_chirp", chirp)
 	serveMux.HandleFunc("GET /admin/metrics", apiConfig.getMetrics)
 	serveMux.HandleFunc("POST /admin/reset", apiConfig.resetMetrics)
 
