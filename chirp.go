@@ -19,7 +19,49 @@ type Chirp struct {
 	UserID    uuid.UUID `json:"user_id"`
 }
 
-func (cfg *apiConfig) chirp(w http.ResponseWriter, r *http.Request) {
+func (cfg *apiConfig) getChirp(w http.ResponseWriter, r *http.Request) {
+	requestedID := r.PathValue("chirpID")
+	ID, err := uuid.Parse(requestedID)
+	if err != nil {
+		respondWithError(w, 404, err.Error())
+		return
+	}
+	dbChirp, err := cfg.db.GetChirp(r.Context(), ID)
+	if err != nil {
+		respondWithError(w, 404, err.Error())
+		return
+	}
+	chirp := Chirp{
+		ID:        dbChirp.ID,
+		CreatedAt: dbChirp.CreatedAt,
+		UpdatedAt: dbChirp.UpdatedAt,
+		Body:      dbChirp.Body,
+		UserID:    dbChirp.UserID,
+	}
+	respondWithJSON(w, 200, chirp)
+}
+
+func (cfg *apiConfig) getChirps(w http.ResponseWriter, r *http.Request) {
+	dbChirps, err := cfg.db.GetAllChirps(r.Context())
+	if err != nil {
+		respondWithError(w, 500, err.Error())
+		return
+	}
+	chirps := []Chirp{}
+	for _, dbChirp := range dbChirps {
+		newChirp := Chirp{
+			ID:        dbChirp.ID,
+			CreatedAt: dbChirp.CreatedAt,
+			UpdatedAt: dbChirp.UpdatedAt,
+			Body:      dbChirp.Body,
+			UserID:    dbChirp.UserID,
+		}
+		chirps = append(chirps, newChirp)
+	}
+	respondWithJSON(w, 200, chirps)
+}
+
+func (cfg *apiConfig) createChirp(w http.ResponseWriter, r *http.Request) {
 	type parameters struct {
 		Body   string    `json:"body"`
 		UserID uuid.UUID `json:"user_id"`
