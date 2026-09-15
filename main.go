@@ -18,9 +18,9 @@ func main() {
 	fileHandler := http.StripPrefix("/app", http.FileServer(http.Dir(".")))
 	serveMux.Handle("/app/", apiConfig.middlewareMetricsInc(fileHandler))
 	serveMux.Handle("/app/assets/logo.png", apiConfig.middlewareMetricsInc(fileHandler))
-	serveMux.HandleFunc("GET /healthz", healthz)
-	serveMux.HandleFunc("GET /metrics", apiConfig.getMetrics)
-	serveMux.HandleFunc("POST /reset", apiConfig.resetMetrics)
+	serveMux.HandleFunc("GET /api/healthz", healthz)
+	serveMux.HandleFunc("GET /admin/metrics", apiConfig.getMetrics)
+	serveMux.HandleFunc("POST /admin/reset", apiConfig.resetMetrics)
 
 	server := http.Server{
 		Handler: &serveMux,
@@ -37,9 +37,17 @@ func (cfg *apiConfig) middlewareMetricsInc(next http.Handler) http.Handler {
 }
 
 func (cfg *apiConfig) getMetrics(responseWriter http.ResponseWriter, request *http.Request) {
-	responseWriter.Header().Set("content-type", "  text/plain; charset=utf-8")
+	responseWriter.Header().Set("content-type", "  text/html")
 	responseWriter.WriteHeader(200)
-	bytes := fmt.Appendf(nil, "Hits: %v", cfg.fileserverHits.Load())
+	html := fmt.Sprintf(`
+	<html>
+  <body>
+    <h1>Welcome, Chirpy Admin</h1>
+    <p>Chirpy has been visited %d times!</p>
+  </body>
+</html>
+	`, cfg.fileserverHits.Load())
+	bytes := fmt.Appendf(nil, "%s", html)
 	responseWriter.Write(bytes)
 }
 
