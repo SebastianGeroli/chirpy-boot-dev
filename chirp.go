@@ -1,0 +1,76 @@
+package main
+
+import (
+	"encoding/json"
+	"errors"
+	"net/http"
+	"strings"
+	"time"
+
+	"github.com/SebastianGeroli/chirpy-boot-dev/internal/database"
+	"github.com/google/uuid"
+)
+
+type Chirp struct {
+	ID        uuid.UUID `json:"id"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+	Body      string    `json:"body"`
+	UserID    uuid.UUID `json:"user_id"`
+}
+
+func (cfg *apiConfig) chirp(w http.ResponseWriter, r *http.Request) {
+	type parameters struct {
+		Body   string    `json:"body"`
+		UserID uuid.UUID `json:"user_id"`
+	}
+	params := parameters{}
+	decoder := json.NewDecoder(r.Body)
+	err := decoder.Decode(&params)
+	if err != nil {
+		respondWithError(w, 400, err.Error())
+		return
+	}
+	chirpMsg, err := validate_chirp(params.Body)
+	if err != nil {
+		respondWithError(w, 400, err.Error())
+		return
+	}
+	chirpParams := database.CreateChirpParams{
+		ID:        uuid.New(),
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+		Body:      chirpMsg,
+		UserID:    params.UserID,
+	}
+	chirpCreated, err := cfg.db.CreateChirp(r.Context(), chirpParams)
+	if err != nil {
+		respondWithError(w, 500, err.Error())
+		return
+	}
+	chirp := Chirp{
+		ID:        chirpCreated.ID,
+		CreatedAt: chirpCreated.CreatedAt,
+		UpdatedAt: chirpCreated.UpdatedAt,
+		Body:      chirpCreated.Body,
+		UserID:    chirpCreated.UserID,
+	}
+	respondWithJSON(w, 201, chirp)
+}
+
+func validate_chirp(chirp string) (string, error) {
+	if len(chirp) > 140 {
+		return "", errors.New("Chirp is too long")
+	}
+
+	words := strings.Split(chirp, " ")
+	for i, word := range words {
+		loweredWord := strings.ToLower(word)
+		if loweredWord == "kerfuffle" || loweredWord == "sharbert" || loweredWord == "fornax" {
+			words[i] = "****"
+		}
+	}
+
+	sanitazedChirp := strings.Join(words, " ")
+	return sanitazedChirp, nil
+}
