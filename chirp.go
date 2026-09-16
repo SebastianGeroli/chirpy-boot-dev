@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/SebastianGeroli/chirpy-boot-dev/internal/auth"
 	"github.com/SebastianGeroli/chirpy-boot-dev/internal/database"
 	"github.com/google/uuid"
 )
@@ -63,12 +64,24 @@ func (cfg *apiConfig) getChirps(w http.ResponseWriter, r *http.Request) {
 
 func (cfg *apiConfig) createChirp(w http.ResponseWriter, r *http.Request) {
 	type parameters struct {
-		Body   string    `json:"body"`
-		UserID uuid.UUID `json:"user_id"`
+		Body string `json:"body"`
 	}
+
+	token, err := auth.GetBearerToken(r.Header)
+	if err != nil {
+		respondWithError(w, 401, err.Error())
+		return
+	}
+	userID, err := auth.ValidateJWT(token, cfg.secret)
+
+	if err != nil {
+		respondWithError(w, 401, err.Error())
+		return
+	}
+
 	params := parameters{}
 	decoder := json.NewDecoder(r.Body)
-	err := decoder.Decode(&params)
+	err = decoder.Decode(&params)
 	if err != nil {
 		respondWithError(w, 400, err.Error())
 		return
@@ -83,7 +96,7 @@ func (cfg *apiConfig) createChirp(w http.ResponseWriter, r *http.Request) {
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 		Body:      chirpMsg,
-		UserID:    params.UserID,
+		UserID:    userID,
 	}
 	chirpCreated, err := cfg.db.CreateChirp(r.Context(), chirpParams)
 	if err != nil {
