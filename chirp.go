@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"sort"
 	"strings"
 	"time"
 
@@ -45,6 +46,7 @@ func (cfg *apiConfig) getChirp(w http.ResponseWriter, r *http.Request) {
 func (cfg *apiConfig) getChirps(w http.ResponseWriter, r *http.Request) {
 
 	authorID := r.URL.Query().Get("author_id")
+	sortType := r.URL.Query().Get("sort")
 	var dbChirps []database.Chirp
 	var err error
 	if authorID == "" {
@@ -78,6 +80,13 @@ func (cfg *apiConfig) getChirps(w http.ResponseWriter, r *http.Request) {
 		}
 		chirps = append(chirps, newChirp)
 	}
+
+	if sortType == "desc" {
+		sort.Slice(chirps, func(i, j int) bool {
+			return chirps[i].CreatedAt.After(chirps[j].CreatedAt)
+		})
+	}
+
 	respondWithJSON(w, 200, chirps)
 }
 
