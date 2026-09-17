@@ -18,6 +18,7 @@ type User struct {
 	Email        string    `json:"email"`
 	Token        string    `json:"token"`
 	RefreshToken string    `json:"refresh_token"`
+	IsChirpyRed  bool      `json:"is_chirpy_red"`
 }
 
 func (cfg *apiConfig) createUser(w http.ResponseWriter, r *http.Request) {
@@ -52,10 +53,11 @@ func (cfg *apiConfig) createUser(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, 500, err.Error())
 	}
 	user := User{
-		ID:        createdUser.ID,
-		CreatedAt: createdUser.CreatedAt,
-		UpdatedAt: createdUser.UpdatedAt,
-		Email:     createdUser.Email,
+		ID:          createdUser.ID,
+		CreatedAt:   createdUser.CreatedAt,
+		UpdatedAt:   createdUser.UpdatedAt,
+		Email:       createdUser.Email,
+		IsChirpyRed: createdUser.IsChirpyRed,
 	}
 
 	respondWithJSON(w, 201, user)
@@ -115,6 +117,7 @@ func (cfg *apiConfig) loginUser(w http.ResponseWriter, r *http.Request) {
 		Email:        dbUser.Email,
 		Token:        token,
 		RefreshToken: dbToken.Token,
+		IsChirpyRed:  dbUser.IsChirpyRed,
 	}
 	respondWithJSON(w, 200, user)
 }
@@ -214,10 +217,47 @@ func (cfg *apiConfig) updateUser(w http.ResponseWriter, r *http.Request) {
 	}
 	dbUpdatedUser, err := cfg.db.UpdateUser(r.Context(), updateParams)
 	user := User{
-		ID:        dbUpdatedUser.ID,
-		CreatedAt: dbUpdatedUser.CreatedAt,
-		UpdatedAt: dbUpdatedUser.UpdatedAt,
-		Email:     dbUpdatedUser.Email,
+		ID:          dbUpdatedUser.ID,
+		CreatedAt:   dbUpdatedUser.CreatedAt,
+		UpdatedAt:   dbUpdatedUser.UpdatedAt,
+		Email:       dbUpdatedUser.Email,
+		IsChirpyRed: dbUpdatedUser.IsChirpyRed,
 	}
 	respondWithJSON(w, 200, user)
+}
+
+func (cfg *apiConfig) upgradeUser(w http.ResponseWriter, r *http.Request) {
+	type parameters struct {
+		Event string            `json:"event"`
+		Data  map[string]string `json:"data"`
+	}
+	decoder := json.NewDecoder(r.Body)
+	params := parameters{}
+	err := decoder.Decode(&params)
+	if err != nil {
+		respondWithError(w, 500, err.Error())
+		return
+	}
+
+	if params.Event != "user.upgraded" {
+		respondWithJSON(w, 204, nil)
+		return
+	}
+	userId, ok := params.Data["user_id"]
+	if !ok {
+		respondWithError(w, 500, "No user_id found on data")
+		return
+	}
+	ID, err := uuid.Parse(userId)
+	if err != nil {
+		respondWithError(w, 500, err.Error())
+		return
+	}
+	_, err = cfg.db.UpgradeToChirpyRed(r.Context(), ID)
+	if err != nil {
+		respondWithError(w, 404, err.Error())
+		return
+	}
+
+	respondWithJSON(w, 204, nil)
 }

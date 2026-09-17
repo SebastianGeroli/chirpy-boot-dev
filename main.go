@@ -34,20 +34,24 @@ func main() {
 		secret:         secret,
 	}
 	serveMux := http.ServeMux{}
+	//Misc
 	fileHandler := http.StripPrefix("/app", http.FileServer(http.Dir(".")))
 	serveMux.Handle("/app/", cfg.middlewareMetricsInc(fileHandler))
 	serveMux.Handle("/app/assets/logo.png", cfg.middlewareMetricsInc(fileHandler))
 	serveMux.HandleFunc("GET /api/healthz", healthz)
 	serveMux.HandleFunc("GET /admin/metrics", cfg.getMetrics)
 	serveMux.HandleFunc("POST /admin/reset", cfg.reset)
+	//User & tokens
 	serveMux.HandleFunc("POST /api/users", cfg.createUser)
 	serveMux.HandleFunc("POST /api/login", cfg.loginUser)
+	serveMux.HandleFunc("PUT /api/users", cfg.updateUser)
+	serveMux.HandleFunc("POST /api/refresh", cfg.refreshToken)
+	serveMux.HandleFunc("POST /api/revoke", cfg.revokeToken)
+	serveMux.HandleFunc("POST /api/polka/webhooks", cfg.upgradeUser)
+	//Chirps
 	serveMux.HandleFunc("POST /api/chirps", cfg.createChirp)
 	serveMux.HandleFunc("GET /api/chirps", cfg.getChirps)
 	serveMux.HandleFunc("GET /api/chirps/{chirpID}", cfg.getChirp)
-	serveMux.HandleFunc("POST /api/refresh", cfg.refreshToken)
-	serveMux.HandleFunc("POST /api/revoke", cfg.revokeToken)
-	serveMux.HandleFunc("PUT /api/users", cfg.updateUser)
 	serveMux.HandleFunc("DELETE /api/chirps/{chirpID}", cfg.deleteChirp)
 
 	server := http.Server{
