@@ -231,9 +231,16 @@ func (cfg *apiConfig) upgradeUser(w http.ResponseWriter, r *http.Request) {
 		Event string            `json:"event"`
 		Data  map[string]string `json:"data"`
 	}
+
+	apiKey, err := auth.GetAPIKey(r.Header)
+	if err != nil || apiKey != cfg.polkaKey {
+		respondWithError(w, 401, err.Error())
+		return
+	}
+
 	decoder := json.NewDecoder(r.Body)
 	params := parameters{}
-	err := decoder.Decode(&params)
+	err = decoder.Decode(&params)
 	if err != nil {
 		respondWithError(w, 500, err.Error())
 		return

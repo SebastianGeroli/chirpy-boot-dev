@@ -16,12 +16,14 @@ type apiConfig struct {
 	fileserverHits atomic.Int32
 	db             *database.Queries
 	secret         string
+	polkaKey       string
 }
 
 func main() {
 	godotenv.Load()
 	dbURL := os.Getenv("DB_URL")
 	secret := os.Getenv("SECRET")
+	polkaKey := os.Getenv("POLKA_KEY")
 	db, err := sql.Open("postgres", dbURL)
 	if err != nil {
 		fmt.Printf("Failed to open connection to DB")
@@ -32,6 +34,7 @@ func main() {
 		fileserverHits: atomic.Int32{},
 		db:             dbQueries,
 		secret:         secret,
+		polkaKey:       polkaKey,
 	}
 	serveMux := http.ServeMux{}
 	//Misc
