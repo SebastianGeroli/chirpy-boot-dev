@@ -174,3 +174,50 @@ func (cfg *apiConfig) revokeToken(w http.ResponseWriter, r *http.Request) {
 	}
 	respondWithJSON(w, 204, nil)
 }
+
+func (cfg *apiConfig) updateUser(w http.ResponseWriter, r *http.Request) {
+	token, err := auth.GetBearerToken(r.Header)
+	if err != nil {
+		respondWithError(w, 401, err.Error())
+		return
+	}
+
+	userID, err := auth.ValidateJWT(token, cfg.secret)
+	if err != nil {
+		respondWithError(w, 401, err.Error())
+		return
+	}
+
+	type parameters struct {
+		Email    string `json:"email"`
+		Password string `json:"password"`
+	}
+	decoder := json.NewDecoder(r.Body)
+	params := parameters{}
+	err = decoder.Decode(&params)
+	if err != nil {
+		respondWithError(w, 401, err.Error())
+		return
+	}
+
+	hashed_password, err := auth.HashPassword(params.Password)
+	if err != nil {
+		respondWithError(w, 401, err.Error())
+		return
+	}
+
+	updateParams := database.UpdateUserParams{
+		ID:             userID,
+		UpdatedAt:      time.Now(),
+		Email:          params.Email,
+		HashedPassword: hashed_password,
+	}
+	dbUpdatedUser, err := cfg.db.UpdateUser(r.Context(), updateParams)
+	user := User{
+		ID:        dbUpdatedUser.ID,
+		CreatedAt: dbUpdatedUser.CreatedAt,
+		UpdatedAt: dbUpdatedUser.UpdatedAt,
+		Email:     dbUpdatedUser.Email,
+	}
+	respondWithJSON(w, 200, user)
+}

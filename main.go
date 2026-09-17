@@ -47,6 +47,7 @@ func main() {
 	serveMux.HandleFunc("GET /api/chirps/{chirpID}", cfg.getChirp)
 	serveMux.HandleFunc("POST /api/refresh", cfg.refreshToken)
 	serveMux.HandleFunc("POST /api/revoke", cfg.revokeToken)
+	serveMux.HandleFunc("PUT /api/users", cfg.updateUser)
 
 	server := http.Server{
 		Handler: &serveMux,
