@@ -129,3 +129,41 @@ func validate_chirp(chirp string) (string, error) {
 	sanitazedChirp := strings.Join(words, " ")
 	return sanitazedChirp, nil
 }
+
+func (cfg *apiConfig) deleteChirp(w http.ResponseWriter, r *http.Request) {
+	token, err := auth.GetBearerToken(r.Header)
+	if err != nil {
+		respondWithError(w, 401, err.Error())
+		return
+	}
+
+	userID, err := auth.ValidateJWT(token, cfg.secret)
+	if err != nil {
+		respondWithError(w, 401, err.Error())
+		return
+	}
+	chirpID, err := uuid.Parse(r.PathValue("chirpID"))
+	if err != nil {
+		respondWithError(w, 401, err.Error())
+		return
+	}
+
+	dbChirp, err := cfg.db.GetChirp(r.Context(), chirpID)
+	if err != nil {
+		respondWithError(w, 404, err.Error())
+		return
+	}
+
+	if dbChirp.UserID != userID {
+		respondWithError(w, 403, "Not author of chirp")
+		return
+	}
+
+	_, err = cfg.db.DeleteChirp(r.Context(), chirpID)
+	if err != nil {
+		respondWithError(w, 404, err.Error())
+		return
+	}
+
+	respondWithJSON(w, 204, nil)
+}
